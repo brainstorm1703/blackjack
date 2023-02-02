@@ -2,6 +2,9 @@
 #define MAINWINDOW_H
 
 #include <QMainWindow>
+#include <iostream>
+
+using namespace std;
 
 QT_BEGIN_NAMESPACE
 namespace Ui { class MainWindow; }
@@ -15,7 +18,21 @@ public:
     MainWindow(QWidget *parent = nullptr);
     ~MainWindow();
 
+private slots:
+    void on_startGame_clicked();
+
+    void on_addCard_clicked();
+
+    void on_stand_clicked();
+
 private:
     Ui::MainWindow *ui;
+
+    void startGame();
+
+    void endGame();
+
+    void setUIVisibility(bool t);
+
 };
 #endif // MAINWINDOW_H
