@@ -2,7 +2,13 @@
 #define MAINWINDOW_H
 
 #include <QMainWindow>
+#include <QLabel>
+#include <QList>
+#include <QRect>
+
 #include <iostream>
+
+#include <card.h>
 
 using namespace std;
 
@@ -25,6 +31,8 @@ private slots:
 
     void on_stand_clicked();
 
+    void on_bet_textChanged();
+
 private:
     Ui::MainWindow *ui;
 
@@ -33,6 +41,17 @@ private:
     void endGame();
 
     void setUIVisibility(bool t);
+
+    void animation(QRect qRect, int x, QList<QLabel*> *list);
+
+    vector<card> deck;
+    int probableScorePlayer;
+    QList<QLabel*> playerCard;
+    QList<QLabel*> dealerCard;
+
+    int cash;
+
+    int bid;
 
 };
 #endif // MAINWINDOW_H

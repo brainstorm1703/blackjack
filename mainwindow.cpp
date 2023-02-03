@@ -12,19 +12,21 @@
 #include <QTimer>
 #include <QThread>
 #include <QFile>
+#include <QLabel>
+#include <QStyle>
+#include <QSize>
+#include <QPropertyAnimation>
 
 #include "card.h"
 
 using namespace std;
-vector<card> deck;
-int probableScorePlayer;
-int probableScoreDealer;
 
 MainWindow::MainWindow(QWidget *parent)
     : QMainWindow(parent)
     , ui(new Ui::MainWindow)
 {
     ui->setupUi(this);
+    cash = 500;
     startGame();
 }
 
@@ -33,9 +35,9 @@ void MainWindow::startGame(){
     //        Hearts (Черви)
     //        Clubs (Крест)
     //        Spades (Пики)
+    setUIVisibility(false);
     deck.clear();
     probableScorePlayer = 0;
-    probableScoreDealer = 0;
     QFile file(":/res/deck.txt");
     if(file.open(QIODevice::ReadOnly |QIODevice::Text)) {
         while(!file.atEnd()) {
@@ -45,7 +47,15 @@ void MainWindow::startGame(){
         }
     }
     file.close();
-    setUIVisibility(false);
+
+    for (int i = 0; i < playerCard.size(); ++i) {
+        playerCard[i]->hide();
+        playerCard[i]->close();
+    }
+    for (int i = 0; i < dealerCard.size(); ++i) {
+        dealerCard[i]->hide();
+        dealerCard[i]->close();
+    }
 }
 
 MainWindow::~MainWindow()
@@ -54,34 +64,68 @@ MainWindow::~MainWindow()
 }
 
 void MainWindow::setUIVisibility(bool t){
+    ui->startGame->setVisible(!t);
+    ui->Score_1->setVisible(t);
+    ui->Score_2->setVisible(t);
+    ui->dealerFirstCard->setVisible(false);
+    ui->playerFirstCard->setVisible(false);
     ui->addCard->setVisible(t);
-    ui->dealerScore->setVisible(t);
-    ui->playerScore->setVisible(t);
+    ui->addCard->setIcon(QIcon("://res/button/hit.png"));
     ui->dScore->setVisible(t);
     ui->pScore->setVisible(t);
     ui->stand->setVisible(t);
+    ui->stand->setIcon(QIcon("://res/button/pass.png"));
+    ui->deckCard->setVisible(t);
+    ui->playerCash->setText(QString::number(cash));
+    ui->bet->setEnabled(!t);
+}
+
+void MainWindow::animation(QRect qRect, int x, QList<QLabel*> *list){
+    QLabel *c = new QLabel("c", this);
+    QString cc = ":/res/img/v1/" + QString::fromStdString(deck[x].getPathToFile()) + ".png";
+    c->setIndent(100);
+    c->resize(93, 132);
+    c->setVisible(true);
+    c->setPixmap(QPixmap(cc).scaled(93, 132, Qt::KeepAspectRatio, Qt::SmoothTransformation));
+
+    c->show();
+    list->append(c);
+    QPropertyAnimation *animation = new QPropertyAnimation(c, "geometry");
+    animation->setDuration(1000);
+    animation->setEasingCurve(QEasingCurve::OutQuint);
+    animation->setStartValue(ui->deckCard->geometry());
+    animation->setEndValue(qRect);
+    animation->start(QAbstractAnimation::KeepWhenStopped);
 }
 
 void MainWindow::on_startGame_clicked()
 {
-    ui->startGame->setVisible(false);
+    bid = ui->bet->toPlainText().toInt();
+    cash -= bid;
     setUIVisibility(true);
 
     int x = rand() % deck.size();
-    if (deck[x].getValue() == 11) probableScoreDealer = 1;
 
-    ui->dealerScore->setText(QString::fromStdString(deck[x].getPathToFile()));
     ui->dScore->setText(QString::number(deck[x].getValue()));
+
+    animation(ui->dealerFirstCard->geometry(), x, &dealerCard);
 
     deck.erase(deck.begin() + x);
 
     x = rand() % deck.size();
     if (deck[x].getValue() == 11) probableScorePlayer = 1;
 
-    ui->playerScore->setText(QString::fromStdString(deck[x].getPathToFile()));
+    animation(ui->playerFirstCard->geometry(), x, &playerCard);
+
     ui->pScore->setText(QString::number(deck[x].getValue()));
 
+    deck.erase(deck.begin() + x);
+
     x = rand() % deck.size();
+
+    QRect dCard(QPoint(ui->playerFirstCard->geometry().x() + 50, ui->playerFirstCard->geometry().y()), QSize(93, 132));
+
+    animation(dCard, x, &playerCard);
 
     switch (probableScorePlayer) {
     case 0:
@@ -96,16 +140,21 @@ void MainWindow::on_startGame_clicked()
         break;
     }
 
-    ui->playerScore->setText(ui->playerScore->text() + " + " + QString::fromStdString(deck[x].getPathToFile()));
-    int score = deck[x].getValue() + ui->pScore->text().toInt();
-    ui->pScore->setText(QString::number(score));
 
-    if (score == 21){
+    if (probableScorePlayer == 2){
+        ui->pScore->setText(QString::number(probableScorePlayer));
+    } else {
+        int score = deck[x].getValue() + ui->pScore->text().toInt();
+        ui->pScore->setText(QString::number(score));
+    }
+
+    if (ui->pScore->text().toInt() == 21){
+        bid *= 2.5;
+        cash += bid;
         QMessageBox msgBox;
         msgBox.setText("Game finish. You Win");
         msgBox.exec();
         startGame();
-        on_startGame_clicked();
     }
 
     deck.erase(deck.begin() + x);
@@ -114,70 +163,65 @@ void MainWindow::on_startGame_clicked()
 
 void MainWindow::on_addCard_clicked()
 {
+    ui->bet->setEnabled(false);
+
+    ui->playerCash->setText(QString::number(cash));
 
     int x = rand() % deck.size();
 
-    if (probableScorePlayer != 0){
+    if (probableScorePlayer != 0 && probableScorePlayer != 2){
+
         if (deck[x].getValue() > (21 - ui->pScore->text().toInt()))
             ui->pScore->setText(QString::number(probableScorePlayer));
+
     }
 
-    ui->playerScore->setText(ui->playerScore->text() + " + " + QString::fromStdString(deck[x].getPathToFile()));
+    QRect dCard;
+    dCard.setX(playerCard[playerCard.size() - 1]->geometry().x() + 50);
+    dCard.setY(playerCard[playerCard.size() - 1]->geometry().y());
+    dCard.setSize(QSize(93, 132));
+
+    animation(dCard, x, &playerCard);
+
     int score = deck[x].getValue() + ui->pScore->text().toInt();
     ui->pScore->setText(QString::number(score));
 
 
     deck.erase(deck.begin() + x);
 
-    if (score > 21){
+    if (ui->pScore->text().toInt() > 21){
         QMessageBox msgBox;
         msgBox.setText("Game finish. You Lose");
         msgBox.exec();
+        if (cash == 0){
+            msgBox.setText("You have no money. Restart the game");
+            msgBox.exec();
+            cash = 500;
+        }
         startGame();
-        on_startGame_clicked();
     }
-    if (score == 21){
+    if (ui->pScore->text().toInt() == 21){
+        bid *= 2;
+        cash += bid;
         QMessageBox msgBox;
         msgBox.setText("Game finish. You Win");
         msgBox.exec();
         startGame();
-        on_startGame_clicked();
     }
 }
 
 void MainWindow::on_stand_clicked()
 {
+    ui->bet->setEnabled(false);
     bool t = true;
     int x = rand() % deck.size();
-    switch (probableScoreDealer) {
-    case 0:
-        if (deck[x].getValue() == 11){
-            probableScoreDealer = 1 + ui->dScore->text().toInt();
-        }
-        break;
-    case 1:
-        if (deck[x].getValue() == 11){
-            probableScoreDealer = 2;
-        } else probableScoreDealer += deck[x].getValue();
-        break;
-    }
 
-    switch (probableScoreDealer) {
-    case 0:
-        ui->dealerScore->setText(ui->dealerScore->text() + " + " + QString::fromStdString(deck[x].getPathToFile()));
-        ui->dScore->setText(QString::number(deck[x].getValue() + ui->dScore->text().toInt()));
-        break;
-    case 1:
-        if (deck[x].getValue() > (21 - ui->dScore->text().toInt())){
-            ui->dealerScore->setText(ui->dealerScore->text() + " + " + QString::fromStdString(deck[x].getPathToFile()));
-            ui->dScore->setText(QString::number(probableScoreDealer + deck[x].getValue()));
-        }
-        break;
-    case 2:
-        ui->dealerScore->setText(ui->dealerScore->text() + " + " + QString::fromStdString(deck[x].getPathToFile()));
-        ui->dScore->setText(QString::number(probableScoreDealer));
-        break;
-    }
+    QRect dCard(QPoint(ui->dealerFirstCard->geometry().x() + 50, ui->dealerFirstCard->geometry().y()), QSize(93, 132));
+
+    animation(dCard, x, &dealerCard);
+
+    int score = deck[x].getValue() + ui->dScore->text().toInt();
+    ui->dScore->setText(QString::number(score));
 
     if (ui->dScore->text().toInt() > 16) {
         t = false;
@@ -187,12 +231,13 @@ void MainWindow::on_stand_clicked()
     while (t) {
         x = rand() % deck.size();
 
-        if (probableScoreDealer != 0){
-            if (deck[x].getValue() > (21 - ui->dScore->text().toInt()))
-                ui->dScore->setText(QString::number(probableScoreDealer));
-        }
 
-        ui->dealerScore->setText(ui->dealerScore->text() + " + " + QString::fromStdString(deck[x].getPathToFile()));
+        dCard.setX(dCard.x() + 50);
+        dCard.setY(dCard.y());
+        dCard.setSize(QSize(93, 132));
+
+        animation(dCard, x, &dealerCard);
+
         int score = deck[x].getValue() + ui->dScore->text().toInt();
         ui->dScore->setText(QString::number(score));
 
@@ -208,24 +253,48 @@ void MainWindow::on_stand_clicked()
 void MainWindow::endGame(){
     deck.clear();
     if (ui->dScore->text().toInt() > 21){
+        bid *= 2;
+        cash += bid;
         QMessageBox msgBox;
         msgBox.setText("Game finish. You Win");
         msgBox.exec();
         startGame();
-        on_startGame_clicked();
     } else {
         if (ui->dScore->text().toInt() > ui->pScore->text().toInt()){
             QMessageBox msgBox;
             msgBox.setText("Game finish. You Lose");
             msgBox.exec();
+            if (cash == 0){
+                msgBox.setText("You have no money. Restart the game");
+                msgBox.exec();
+                cash = 500;
+            }
             startGame();
-            on_startGame_clicked();
+        } else if (ui->dScore->text().toInt() == ui->pScore->text().toInt()){
+            cash += bid;
+            QMessageBox msgBox;
+            msgBox.setText("Game finish. Draw");
+            msgBox.exec();
+            startGame();
         } else {
+            bid *= 2;
+            cash += bid;
             QMessageBox msgBox;
             msgBox.setText("Game finish. You Win");
             msgBox.exec();
             startGame();
-            on_startGame_clicked();
         }
     }
 }
+
+
+void MainWindow::on_bet_textChanged()
+{
+    if (ui->bet->toPlainText().toInt() > cash){
+        ui->bet->setPlainText("");
+        QMessageBox msgBox;
+        msgBox.setText("Make a bet less your cash");
+        msgBox.exec();
+    }
+}
+
