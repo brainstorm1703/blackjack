@@ -57,5 +57,9 @@
         <file>res/background/backgroundCard.png</file>
         <file>res/button/hit.png</file>
         <file>res/button/pass.png</file>
+        <file>res/song/background.mp3</file>
+        <file>res/song/clickButton.mp3</file>
+        <file>res/song/lose.mp3</file>
+        <file>res/song/win.mp3</file>
     </qresource>
 </RCC>

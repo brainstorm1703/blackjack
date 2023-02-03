@@ -15,6 +15,8 @@
 #include <QLabel>
 #include <QStyle>
 #include <QSize>
+#include <QMediaPlayer>
+#include <QAudioOutput>
 #include <QPropertyAnimation>
 
 #include "card.h"
@@ -27,14 +29,11 @@ MainWindow::MainWindow(QWidget *parent)
 {
     ui->setupUi(this);
     cash = 500;
+    playMusic("background");
     startGame();
 }
 
 void MainWindow::startGame(){
-    //        Diamonds (Бубы)
-    //        Hearts (Черви)
-    //        Clubs (Крест)
-    //        Spades (Пики)
     setUIVisibility(false);
     deck.clear();
     probableScorePlayer = 0;
@@ -98,8 +97,19 @@ void MainWindow::animation(QRect qRect, int x, QList<QLabel*> *list){
     animation->start(QAbstractAnimation::KeepWhenStopped);
 }
 
+void MainWindow::playMusic(string action){
+    QMediaPlayer *player = new QMediaPlayer;
+    QAudioOutput *audioOutput = new QAudioOutput;
+    player->setAudioOutput(audioOutput);
+    player->setSource(QUrl("qrc:/res/song/" + QString::fromStdString(action) + ".mp3"));
+    audioOutput->setVolume(0.1);
+    player->play();
+}
+
 void MainWindow::on_startGame_clicked()
 {
+    playMusic("clickButton");
+
     bid = ui->bet->toPlainText().toInt();
     cash -= bid;
     setUIVisibility(true);
@@ -163,6 +173,8 @@ void MainWindow::on_startGame_clicked()
 
 void MainWindow::on_addCard_clicked()
 {
+    playMusic("clickButton");
+
     ui->bet->setEnabled(false);
 
     ui->playerCash->setText(QString::number(cash));
@@ -190,6 +202,7 @@ void MainWindow::on_addCard_clicked()
     deck.erase(deck.begin() + x);
 
     if (ui->pScore->text().toInt() > 21){
+        playMusic("lose");
         QMessageBox msgBox;
         msgBox.setText("Game finish. You Lose");
         msgBox.exec();
@@ -203,6 +216,7 @@ void MainWindow::on_addCard_clicked()
     if (ui->pScore->text().toInt() == 21){
         bid *= 2;
         cash += bid;
+        playMusic("win");
         QMessageBox msgBox;
         msgBox.setText("Game finish. You Win");
         msgBox.exec();
@@ -212,6 +226,8 @@ void MainWindow::on_addCard_clicked()
 
 void MainWindow::on_stand_clicked()
 {
+    playMusic("clickButton");
+
     ui->bet->setEnabled(false);
     bool t = true;
     int x = rand() % deck.size();
@@ -255,12 +271,14 @@ void MainWindow::endGame(){
     if (ui->dScore->text().toInt() > 21){
         bid *= 2;
         cash += bid;
+        playMusic("win");
         QMessageBox msgBox;
         msgBox.setText("Game finish. You Win");
         msgBox.exec();
         startGame();
     } else {
         if (ui->dScore->text().toInt() > ui->pScore->text().toInt()){
+            playMusic("lose");
             QMessageBox msgBox;
             msgBox.setText("Game finish. You Lose");
             msgBox.exec();
@@ -279,6 +297,7 @@ void MainWindow::endGame(){
         } else {
             bid *= 2;
             cash += bid;
+            playMusic("win");
             QMessageBox msgBox;
             msgBox.setText("Game finish. You Win");
             msgBox.exec();

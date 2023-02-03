@@ -44,6 +44,8 @@ private:
 
     void animation(QRect qRect, int x, QList<QLabel*> *list);
 
+    void playMusic(string action);
+
     vector<card> deck;
     int probableScorePlayer;
     QList<QLabel*> playerCard;
